@@ -1,0 +1,47 @@
+name: Build RAG Index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "books/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装 CPU 版 PyTorch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 缓存嵌入模型
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: 构建索引
+        run: python scripts/build_index.py --books books --out index
+
+      - name: 打包索引
+        run: tar -czf rag-index.tar.gz -C index .
+
+      - name: 发布 / 更新 Release（索引不进 Git）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view index-latest >/dev/null 2>&1 \
+            || gh release create index-latest -t "RAG Index (latest)" -n "自动生成的 RAG 向量索引"
+          gh release upload index-latest rag-index.tar.gz --clobber
