@@ -16,29 +16,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 检查是否有原文
+        id: check
+        run: |
+          if find books -type f \( -iname '*.pdf' -o -iname '*.epub' \) | grep -q .; then
+            echo "has_books=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_books=false" >> "$GITHUB_OUTPUT"
+            echo "books/ 下暂无 PDF/EPUB，跳过索引构建。"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.check.outputs.has_books == 'true'
         with:
           python-version: "3.11"
 
       - name: 安装 CPU 版 PyTorch
+        if: steps.check.outputs.has_books == 'true'
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: 安装依赖
+        if: steps.check.outputs.has_books == 'true'
         run: pip install -r requirements.txt
 
       - name: 缓存嵌入模型
+        if: steps.check.outputs.has_books == 'true'
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
           key: hf-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
 
       - name: 构建索引
+        if: steps.check.outputs.has_books == 'true'
         run: python scripts/build_index.py --books books --out index
 
       - name: 打包索引
+        if: steps.check.outputs.has_books == 'true'
         run: tar -czf rag-index.tar.gz -C index .
 
       - name: 发布 / 更新 Release（索引不进 Git）
+        if: steps.check.outputs.has_books == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
