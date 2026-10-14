@@ -1,0 +1,12 @@
+node_modules/
+target/
+__pycache__/
+.env
+dist/
+*.log
+.DS_Store
+
+# RAG 索引产物：由 CI 生成并发布为 Release 附件，不进仓库
+index/
+rag-index.tar.gz
+.huggingface/
